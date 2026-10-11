@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "killinfo",
+  "version": "${version}",
+  "name": "KillInfo",
+  "description": "Öldüğünüz yerin koordinatlarını hatırlar ve /killinfo komutu ile sadece size özel chat mesajı olarak gösterir. Singleplayer ve Multiplayer tam uyumludur.",
+  "authors": [
+    "Kazim"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/killinfo/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.killinfo.KillInfoClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "killinfo.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

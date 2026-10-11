@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.killinfo.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "DeathScreenMixin",
+    "ClientPacketListenerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
