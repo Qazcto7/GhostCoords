@@ -1,6 +1,7 @@
 package com.killinfo.mixin;
 
 import com.killinfo.data.DeathTracker;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
@@ -19,8 +20,10 @@ public class DeathScreenMixin {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onDeathScreenInit(Component title, boolean isHardcore, LocalPlayer player, CallbackInfo ci) {
-        if (player != null) {
-            DeathTracker.recordDeath(player, this.causeOfDeath);
+        LocalPlayer targetPlayer = (player != null) ? player : Minecraft.getInstance().player;
+        if (targetPlayer != null) {
+            Component message = (this.causeOfDeath != null) ? this.causeOfDeath : title;
+            DeathTracker.recordDeath(targetPlayer, message);
         }
     }
 }

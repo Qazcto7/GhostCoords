@@ -20,10 +20,10 @@ public class DeathData {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.dimension = dimension != null ? dimension : "minecraft:overworld";
-        this.cause = (cause != null && !cause.isBlank()) ? cause : "Bilinmiyor";
+        this.dimension = (dimension != null && !dimension.isBlank()) ? dimension : "minecraft:overworld";
+        this.cause = (cause != null && !cause.isBlank()) ? cause.trim() : "Bilinmiyor";
         this.timestamp = timestamp;
-        this.serverOrWorld = serverOrWorld != null ? serverOrWorld : "Bilinmeyen Sunucu/Dünya";
+        this.serverOrWorld = (serverOrWorld != null && !serverOrWorld.isBlank()) ? serverOrWorld : "Bilinmeyen Sunucu/Dünya";
     }
 
     public double getX() {
@@ -70,24 +70,35 @@ public class DeathData {
         return getBlockX() + " " + getBlockY() + " " + getBlockZ();
     }
 
+    public String getTeleportCommand() {
+        return String.format("/execute in %s run tp @s %d %d %d", dimension, getBlockX(), getBlockY(), getBlockZ());
+    }
+
     public String getDimensionDisplayName() {
         if (dimension == null) return "Bilinmeyen Boyut";
-        return switch (dimension) {
-            case "minecraft:overworld" -> "Dünya (Overworld)";
-            case "minecraft:the_nether" -> "Nether";
-            case "minecraft:the_end" -> "The End";
+        return switch (dimension.toLowerCase()) {
+            case "minecraft:overworld", "overworld" -> "Dünya (Overworld)";
+            case "minecraft:the_nether", "the_nether", "nether" -> "Nether";
+            case "minecraft:the_end", "the_end", "end" -> "The End";
             default -> dimension;
         };
     }
 
     public String getFormattedTime() {
-        return FORMATTER.format(Instant.ofEpochMilli(timestamp));
+        try {
+            return FORMATTER.format(Instant.ofEpochMilli(timestamp));
+        } catch (Exception e) {
+            return "Bilinmeyen Zaman";
+        }
     }
 
     public String getTimeAgo() {
         long elapsedMillis = System.currentTimeMillis() - timestamp;
         if (elapsedMillis < 0) elapsedMillis = 0;
         long seconds = elapsedMillis / 1000;
+        if (seconds < 5) {
+            return "Az önce";
+        }
         if (seconds < 60) {
             return seconds + " saniye önce";
         }

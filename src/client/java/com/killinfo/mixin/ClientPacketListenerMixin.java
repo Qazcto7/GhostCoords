@@ -11,10 +11,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
 public class ClientPacketListenerMixin {
-    @Inject(method = "handlePlayerCombatKill", at = @At("HEAD"))
+    @Inject(
+            method = "handlePlayerCombatKill",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/LocalPlayer;shouldShowDeathScreen()Z"
+            )
+    )
     private void onPlayerCombatKill(ClientboundPlayerCombatKillPacket packet, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player != null && packet.playerId() == client.player.getId()) {
+        if (!client.isSameThread()) {
+            return;
+        }
+
+        if (client.player != null) {
             DeathTracker.recordDeath(client.player, packet.message());
         }
     }

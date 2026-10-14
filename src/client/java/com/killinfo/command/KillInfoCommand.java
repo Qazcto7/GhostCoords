@@ -3,6 +3,7 @@ package com.killinfo.command;
 import com.killinfo.data.DeathData;
 import com.killinfo.data.DeathTracker;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -11,7 +12,7 @@ import net.minecraft.network.chat.Component;
 
 public class KillInfoCommand {
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        dispatcher.register(ClientCommands.literal("killinfo")
+        LiteralCommandNode<FabricClientCommandSource> rootNode = dispatcher.register(ClientCommands.literal("killinfo")
                 .executes(context -> {
                     DeathData death = DeathTracker.getLastDeath();
                     context.getSource().sendFeedback(DeathTracker.formatDeathInfo(death));
@@ -28,7 +29,14 @@ public class KillInfoCommand {
                                 return 0;
                             }
                             String coords = death.getSimpleCoords();
-                            Minecraft.getInstance().keyboardHandler.setClipboard(coords);
+                            try {
+                                if (Minecraft.getInstance().keyboardHandler != null) {
+                                    Minecraft.getInstance().keyboardHandler.setClipboard(coords);
+                                }
+                            } catch (Exception e) {
+                                DeathTracker.LOGGER.warn("Panoya kopyalama başarısız oldu", e);
+                            }
+
                             context.getSource().sendFeedback(
                                     Component.literal("[KillInfo] ")
                                             .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
@@ -62,11 +70,16 @@ public class KillInfoCommand {
                                             .append(Component.literal(" - Koordinatları doğrudan panoya kopyalar.\n").withStyle(ChatFormatting.GRAY))
                                             .append(Component.literal("/killinfo clear").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
                                             .append(Component.literal(" - Kaydedilen ölüm koordinatlarını temizler.\n").withStyle(ChatFormatting.GRAY))
+                                            .append(Component.literal("Alternatif komutlar: /deathinfo, /deathcoords\n").withStyle(ChatFormatting.DARK_GRAY))
                                             .append(Component.literal("--------------------------------------------------").withStyle(ChatFormatting.DARK_GRAY))
                             );
                             return 1;
                         })
                 )
         );
+
+        // Komut takma adları (aliases)
+        dispatcher.register(ClientCommands.literal("deathinfo").redirect(rootNode));
+        dispatcher.register(ClientCommands.literal("deathcoords").redirect(rootNode));
     }
 }
