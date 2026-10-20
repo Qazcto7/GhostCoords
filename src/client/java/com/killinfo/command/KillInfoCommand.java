@@ -70,7 +70,7 @@ public class KillInfoCommand {
                                             .append(Component.literal(" - Koordinatları doğrudan panoya kopyalar.\n").withStyle(ChatFormatting.GRAY))
                                             .append(Component.literal("/killinfo clear").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
                                             .append(Component.literal(" - Kaydedilen ölüm koordinatlarını temizler.\n").withStyle(ChatFormatting.GRAY))
-                                            .append(Component.literal("Alternatif komutlar: /deathinfo, /deathcoords\n").withStyle(ChatFormatting.DARK_GRAY))
+                                            .append(Component.literal("Alternatif komutlar: /deathinfo, /deathcoords, /lastdeath\n").withStyle(ChatFormatting.DARK_GRAY))
                                             .append(Component.literal("--------------------------------------------------").withStyle(ChatFormatting.DARK_GRAY))
                             );
                             return 1;
@@ -81,5 +81,6 @@ public class KillInfoCommand {
         // Komut takma adları (aliases)
         dispatcher.register(ClientCommands.literal("deathinfo").redirect(rootNode));
         dispatcher.register(ClientCommands.literal("deathcoords").redirect(rootNode));
+        dispatcher.register(ClientCommands.literal("lastdeath").redirect(rootNode));
     }
 }

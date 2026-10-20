@@ -74,6 +74,22 @@ public class DeathData {
         return String.format("/execute in %s run tp @s %d %d %d", dimension, getBlockX(), getBlockY(), getBlockZ());
     }
 
+    public String getFormattedServerOrWorld() {
+        if (serverOrWorld == null || serverOrWorld.isBlank() || "default".equalsIgnoreCase(serverOrWorld)) {
+            return "Bilinmeyen Konum";
+        }
+        if (serverOrWorld.startsWith("multiplayer:")) {
+            return "Sunucu (" + serverOrWorld.substring("multiplayer:".length()) + ")";
+        }
+        if (serverOrWorld.startsWith("singleplayer:")) {
+            return "Tek Oyunculu (" + serverOrWorld.substring("singleplayer:".length()) + ")";
+        }
+        if (serverOrWorld.startsWith("world:")) {
+            return "Dünya (" + serverOrWorld.substring("world:".length()) + ")";
+        }
+        return serverOrWorld;
+    }
+
     public String getDimensionDisplayName() {
         if (dimension == null) return "Bilinmeyen Boyut";
         return switch (dimension.toLowerCase()) {

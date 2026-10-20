@@ -6,6 +6,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -30,6 +31,7 @@ public class DeathTracker {
 
     private static DeathData globalLastDeath = null;
     private static final Map<String, DeathData> deathsByWorld = new HashMap<>();
+    private static volatile boolean isCleared = false;
 
     public static void init() {
         loadData();
@@ -41,6 +43,8 @@ public class DeathTracker {
 
     public static synchronized void recordDeath(LocalPlayer player, Component causeComponent) {
         if (player == null) return;
+
+        isCleared = false;
 
         double x = player.getX();
         double y = player.getY();
@@ -57,16 +61,17 @@ public class DeathTracker {
             previous = globalLastDeath;
         }
 
-        // Aynı ölüm olayının mükerrer tetiklenmesini akıllıca kontrol et (Mesafe + Boyut + Zaman)
+        // Aynı ölüm olayının mükerrer tetiklenmesini akıllıca kontrol et (Aynı Dünya + Mesafe + Boyut + Zaman)
         if (previous != null) {
+            boolean sameWorld = worldKey.equalsIgnoreCase(previous.getServerOrWorld());
+            boolean sameDimension = dimension.equalsIgnoreCase(previous.getDimension());
             double dx = x - previous.getX();
             double dy = y - previous.getY();
             double dz = z - previous.getZ();
             double distSq = dx * dx + dy * dy + dz * dz;
-            boolean sameDimension = dimension.equalsIgnoreCase(previous.getDimension());
             boolean withinTimeWindow = (now - previous.getTimestamp()) < 2500;
 
-            if (sameDimension && distSq < 9.0 && withinTimeWindow) {
+            if (sameWorld && sameDimension && distSq < 9.0 && withinTimeWindow) {
                 // Aynı ölüm: Eğer yeni çağrıda daha detaylı bir ölüm nedeni varsa güncelle
                 if (!cause.isBlank() && (previous.getCause().equals("Bilinmiyor") || previous.getCause().isBlank())) {
                     DeathData updated = new DeathData(
@@ -91,17 +96,18 @@ public class DeathTracker {
         deathsByWorld.put(worldKey, data);
         saveData();
 
-        LOGGER.info("[KillInfo] Ölüm kaydedildi: X:{} Y:{} Z:{} ({}) - Dünya: {}",
+        LOGGER.info("[KillInfo] Ölüm kaydedildi: X:{} Y:{} Z:{} ({}) - Konum: {}",
                 data.getBlockX(), data.getBlockY(), data.getBlockZ(), dimension, worldKey);
     }
 
     public static synchronized DeathData getLastDeath() {
+        if (isCleared) {
+            return null;
+        }
+
         String worldKey = getCurrentWorldKey();
         if (deathsByWorld.containsKey(worldKey) && deathsByWorld.get(worldKey) != null) {
             return deathsByWorld.get(worldKey);
-        }
-        if (globalLastDeath != null) {
-            return globalLastDeath;
         }
 
         // Vanilla Minecraft fallback (Örn. Recovery Compass verisi)
@@ -111,14 +117,14 @@ public class DeathTracker {
                 Optional<GlobalPos> vanillaDeathOpt = mc.player.getLastDeathLocation();
                 if (vanillaDeathOpt.isPresent()) {
                     GlobalPos globalPos = vanillaDeathOpt.get();
-                    var pos = globalPos.pos();
+                    BlockPos pos = globalPos.pos();
                     String dim = globalPos.dimension().identifier().toString();
                     DeathData recovered = new DeathData(
-                            pos.getX(),
+                            pos.getX() + 0.5,
                             pos.getY(),
-                            pos.getZ(),
+                            pos.getZ() + 0.5,
                             dim,
-                            "Minecraft Verisi",
+                            "Minecraft İstemci Verisi",
                             System.currentTimeMillis(),
                             worldKey
                     );
@@ -131,12 +137,17 @@ public class DeathTracker {
             }
         }
 
+        if (globalLastDeath != null) {
+            return globalLastDeath;
+        }
+
         return null;
     }
 
     public static synchronized void clear() {
         globalLastDeath = null;
         deathsByWorld.clear();
+        isCleared = true;
         saveData();
     }
 
@@ -167,9 +178,7 @@ public class DeathTracker {
 
         MutableComponent message = Component.empty();
 
-        message.append(Component.literal("----------------------------------------\n").withStyle(ChatFormatting.DARK_GRAY));
-        message.append(Component.literal("☠ ").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
-        message.append(Component.literal("Son Ölüm Bilgisi:\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        message.append(Component.literal("--- [ ☠ KillInfo - Son Ölüm ] ---\n").withStyle(ChatFormatting.DARK_GRAY));
 
         String coordStr = death.getSimpleCoords();
         MutableComponent coordComp = Component.literal(
@@ -189,6 +198,16 @@ public class DeathTracker {
         message.append(Component.literal("  ● Boyut: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(death.getDimensionDisplayName()).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" (" + death.getDimension() + ")\n").withStyle(ChatFormatting.DARK_GRAY));
+
+        // Dünya / Sunucu bilgisi ve farklı dünya uyarısı
+        String currentWorld = getCurrentWorldKey();
+        boolean isOtherWorld = !currentWorld.equalsIgnoreCase(death.getServerOrWorld());
+        message.append(Component.literal("  ● Dünya / Sunucu: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(death.getFormattedServerOrWorld()).withStyle(ChatFormatting.AQUA));
+        if (isOtherWorld && !"default".equals(death.getServerOrWorld())) {
+            message.append(Component.literal(" (Farklı Konum)").withStyle(ChatFormatting.YELLOW));
+        }
+        message.append(Component.literal("\n"));
 
         if (death.getCause() != null && !death.getCause().isBlank() && !death.getCause().equals("Bilinmiyor")) {
             message.append(Component.literal("  ● Ölüm Nedeni: ").withStyle(ChatFormatting.GRAY))
@@ -224,7 +243,7 @@ public class DeathTracker {
                 .append(Component.literal("  "))
                 .append(tpButton)
                 .append(Component.literal("\n"))
-                .append(Component.literal("----------------------------------------").withStyle(ChatFormatting.DARK_GRAY));
+                .append(Component.literal("---------------------------------").withStyle(ChatFormatting.DARK_GRAY));
 
         return message;
     }
@@ -235,7 +254,9 @@ public class DeathTracker {
             model.globalLastDeath = globalLastDeath;
             model.deathsByWorld = deathsByWorld;
 
-            Files.createDirectories(CONFIG_PATH.getParent());
+            if (CONFIG_PATH.getParent() != null) {
+                Files.createDirectories(CONFIG_PATH.getParent());
+            }
             Path tempPath = CONFIG_PATH.resolveSibling("killinfo.json.tmp");
             try (Writer writer = Files.newBufferedWriter(tempPath)) {
                 GSON.toJson(model, writer);
