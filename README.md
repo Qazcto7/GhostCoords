@@ -38,9 +38,10 @@ All commands are **client-side only** and completely invisible to other players:
 
 ## 📥 Installation
 
-1. Install **Minecraft 26.3** with **Fabric Loader (`>=0.19.5`)** and **Fabric API (`26.3`)**.
-2. Drop `ghostcoords-1.0.0+26.3.jar` into your `.minecraft/mods` folder.
-3. Launch the game and play!
+1. Download the mod from **CurseForge** or **Modrinth**.
+2. Install **Minecraft 26.3** with **Fabric Loader (`>=0.19.5`)** and **Fabric API (`26.3`)**.
+3. Drop `ghostcoords-1.0.0+26.3.jar` into your `.minecraft/mods` folder.
+4. Launch the game and play!
 
 ---
 
