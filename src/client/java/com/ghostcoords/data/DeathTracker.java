@@ -1,4 +1,4 @@
-package com.killinfo.data;
+package com.ghostcoords.data;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -20,20 +20,22 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 public class DeathTracker {
-    public static final Logger LOGGER = LoggerFactory.getLogger("KillInfo");
+    public static final Logger LOGGER = LoggerFactory.getLogger("GhostCoords");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killinfo.json");
+    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("ghostcoords.json");
+    private static final Path LEGACY_CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killinfo.json");
 
     private static DeathData globalLastDeath = null;
     private static final Map<String, DeathData> deathsByWorld = new HashMap<>();
     private static volatile boolean isCleared = false;
 
-    public static void init() {
+    public static synchronized void init() {
         loadData();
     }
 
@@ -61,7 +63,7 @@ public class DeathTracker {
             previous = globalLastDeath;
         }
 
-        // Aynı ölüm olayının mükerrer tetiklenmesini akıllıca kontrol et (Aynı Dünya + Mesafe + Boyut + Zaman)
+        // Prevent duplicate triggers for the exact same death event (World + Dimension + Distance + Time)
         if (previous != null) {
             boolean sameWorld = worldKey.equalsIgnoreCase(previous.getServerOrWorld());
             boolean sameDimension = dimension.equalsIgnoreCase(previous.getDimension());
@@ -72,8 +74,7 @@ public class DeathTracker {
             boolean withinTimeWindow = (now - previous.getTimestamp()) < 2500;
 
             if (sameWorld && sameDimension && distSq < 9.0 && withinTimeWindow) {
-                // Aynı ölüm: Eğer yeni çağrıda daha detaylı bir ölüm nedeni varsa güncelle
-                if (!cause.isBlank() && (previous.getCause().equals("Bilinmiyor") || previous.getCause().isBlank())) {
+                if (!cause.isBlank() && !previous.hasDetailedCause()) {
                     DeathData updated = new DeathData(
                             previous.getX(),
                             previous.getY(),
@@ -96,7 +97,7 @@ public class DeathTracker {
         deathsByWorld.put(worldKey, data);
         saveData();
 
-        LOGGER.info("[KillInfo] Ölüm kaydedildi: X:{} Y:{} Z:{} ({}) - Konum: {}",
+        LOGGER.info("[GhostCoords] Death recorded at X:{} Y:{} Z:{} ({}) - {}",
                 data.getBlockX(), data.getBlockY(), data.getBlockZ(), dimension, worldKey);
     }
 
@@ -110,7 +111,7 @@ public class DeathTracker {
             return deathsByWorld.get(worldKey);
         }
 
-        // Vanilla Minecraft fallback (Örn. Recovery Compass verisi)
+        // Fallback to vanilla Minecraft's client-side last death location (Recovery Compass data)
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             try {
@@ -124,7 +125,7 @@ public class DeathTracker {
                             pos.getY(),
                             pos.getZ() + 0.5,
                             dim,
-                            "Minecraft İstemci Verisi",
+                            DeathData.VANILLA_CAUSE_SENTINEL,
                             System.currentTimeMillis(),
                             worldKey
                     );
@@ -137,11 +138,7 @@ public class DeathTracker {
             }
         }
 
-        if (globalLastDeath != null) {
-            return globalLastDeath;
-        }
-
-        return null;
+        return globalLastDeath;
     }
 
     public static synchronized void clear() {
@@ -170,15 +167,16 @@ public class DeathTracker {
 
     public static Component formatDeathInfo(DeathData death) {
         if (death == null) {
-            return Component.literal("[KillInfo] ")
-                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
-                    .append(Component.literal("Henüz kaydedilmiş bir ölüm konumu bulunmuyor.")
+            return Component.translatable("ghostcoords.prefix")
+                    .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
+                    .append(Component.translatable("ghostcoords.no_death")
                             .withStyle(ChatFormatting.GRAY));
         }
 
         MutableComponent message = Component.empty();
 
-        message.append(Component.literal("--- [ ☠ KillInfo - Son Ölüm ] ---\n").withStyle(ChatFormatting.DARK_GRAY));
+        message.append(Component.translatable("ghostcoords.header").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD))
+                .append(Component.literal("\n"));
 
         String coordStr = death.getSimpleCoords();
         MutableComponent coordComp = Component.literal(
@@ -188,54 +186,56 @@ public class DeathTracker {
                 .withStyle(style -> style
                         .withClickEvent(new ClickEvent.CopyToClipboard(coordStr))
                         .withHoverEvent(new HoverEvent.ShowText(
-                                Component.literal("Panoya kopyalamak için tıkla:\n" + coordStr).withStyle(ChatFormatting.YELLOW)
+                                Component.translatable("ghostcoords.button.copy.hover", coordStr)
+                                        .withStyle(ChatFormatting.YELLOW)
                         )));
 
-        message.append(Component.literal("  ● Koordinatlar: ").withStyle(ChatFormatting.GRAY))
+        message.append(Component.translatable("ghostcoords.label.coords").withStyle(ChatFormatting.GRAY))
                 .append(coordComp)
                 .append(Component.literal("\n"));
 
-        message.append(Component.literal("  ● Boyut: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(death.getDimensionDisplayName()).withStyle(ChatFormatting.GREEN))
+        message.append(Component.translatable("ghostcoords.label.dimension").withStyle(ChatFormatting.GRAY))
+                .append(death.getDimensionDisplayComponent().copy().withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" (" + death.getDimension() + ")\n").withStyle(ChatFormatting.DARK_GRAY));
 
-        // Dünya / Sunucu bilgisi ve farklı dünya uyarısı
         String currentWorld = getCurrentWorldKey();
         boolean isOtherWorld = !currentWorld.equalsIgnoreCase(death.getServerOrWorld());
-        message.append(Component.literal("  ● Dünya / Sunucu: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(death.getFormattedServerOrWorld()).withStyle(ChatFormatting.AQUA));
-        if (isOtherWorld && !"default".equals(death.getServerOrWorld())) {
-            message.append(Component.literal(" (Farklı Konum)").withStyle(ChatFormatting.YELLOW));
+        message.append(Component.translatable("ghostcoords.label.world").withStyle(ChatFormatting.GRAY))
+                .append(death.getServerOrWorldComponent().copy().withStyle(ChatFormatting.AQUA));
+        if (isOtherWorld && !"default".equalsIgnoreCase(death.getServerOrWorld())) {
+            message.append(Component.translatable("ghostcoords.other_world").withStyle(ChatFormatting.YELLOW));
         }
         message.append(Component.literal("\n"));
 
-        if (death.getCause() != null && !death.getCause().isBlank() && !death.getCause().equals("Bilinmiyor")) {
-            message.append(Component.literal("  ● Ölüm Nedeni: ").withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal(death.getCause()).withStyle(ChatFormatting.WHITE))
+        if (death.hasKnownCause()) {
+            message.append(Component.translatable("ghostcoords.label.cause").withStyle(ChatFormatting.GRAY))
+                    .append(death.getCauseComponent().copy().withStyle(ChatFormatting.WHITE))
                     .append(Component.literal("\n"));
         }
 
-        message.append(Component.literal("  ● Zaman: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(death.getTimeAgo()).withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(" [" + death.getFormattedTime() + "]\n").withStyle(ChatFormatting.DARK_GRAY));
+        message.append(Component.translatable("ghostcoords.label.time").withStyle(ChatFormatting.GRAY))
+                .append(death.getTimeAgoComponent().copy().withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" [").withStyle(ChatFormatting.DARK_GRAY))
+                .append(death.getFormattedTimeComponent().copy().withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal("]\n").withStyle(ChatFormatting.DARK_GRAY));
 
-        // [Panoya Kopyala] Butonu
-        MutableComponent copyButton = Component.literal("[Panoya Kopyala]")
+        MutableComponent copyButton = Component.translatable("ghostcoords.button.copy")
                 .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
                 .withStyle(style -> style
                         .withClickEvent(new ClickEvent.CopyToClipboard(coordStr))
                         .withHoverEvent(new HoverEvent.ShowText(
-                                Component.literal("Koordinatları panoya kopyalamak için tıkla:\n" + coordStr).withStyle(ChatFormatting.YELLOW)
+                                Component.translatable("ghostcoords.button.copy.hover", coordStr)
+                                        .withStyle(ChatFormatting.YELLOW)
                         )));
 
-        // [Işınlan /tp] Butonu
         String tpCommand = death.getTeleportCommand();
-        MutableComponent tpButton = Component.literal("[Işınlan /tp]")
+        MutableComponent tpButton = Component.translatable("ghostcoords.button.tp")
                 .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD)
                 .withStyle(style -> style
                         .withClickEvent(new ClickEvent.SuggestCommand(tpCommand))
                         .withHoverEvent(new HoverEvent.ShowText(
-                                Component.literal("Sohbet satırına ışınlanma komutunu önerir:\n" + tpCommand).withStyle(ChatFormatting.AQUA)
+                                Component.translatable("ghostcoords.button.tp.hover", tpCommand)
+                                        .withStyle(ChatFormatting.AQUA)
                         )));
 
         message.append(Component.literal("  "))
@@ -243,7 +243,7 @@ public class DeathTracker {
                 .append(Component.literal("  "))
                 .append(tpButton)
                 .append(Component.literal("\n"))
-                .append(Component.literal("---------------------------------").withStyle(ChatFormatting.DARK_GRAY));
+                .append(Component.translatable("ghostcoords.footer").withStyle(ChatFormatting.DARK_GRAY));
 
         return message;
     }
@@ -252,12 +252,13 @@ public class DeathTracker {
         try {
             StorageModel model = new StorageModel();
             model.globalLastDeath = globalLastDeath;
-            model.deathsByWorld = deathsByWorld;
+            model.deathsByWorld = new HashMap<>(deathsByWorld);
+            model.cleared = isCleared;
 
             if (CONFIG_PATH.getParent() != null) {
                 Files.createDirectories(CONFIG_PATH.getParent());
             }
-            Path tempPath = CONFIG_PATH.resolveSibling("killinfo.json.tmp");
+            Path tempPath = CONFIG_PATH.resolveSibling("ghostcoords.json.tmp");
             try (Writer writer = Files.newBufferedWriter(tempPath)) {
                 GSON.toJson(model, writer);
             }
@@ -267,33 +268,41 @@ public class DeathTracker {
                 Files.move(tempPath, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (Exception e) {
-            LOGGER.error("Ölüm bilgileri dosyaya kaydedilirken hata oluştu", e);
+            LOGGER.error("[GhostCoords] Failed to save death data", e);
         }
     }
 
     private static void loadData() {
-        if (!Files.exists(CONFIG_PATH)) return;
+        Path sourcePath = Files.exists(CONFIG_PATH) ? CONFIG_PATH : LEGACY_CONFIG_PATH;
+        if (!Files.exists(sourcePath)) return;
 
-        try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
+        try (Reader reader = Files.newBufferedReader(sourcePath)) {
             StorageModel model = GSON.fromJson(reader, StorageModel.class);
             if (model != null) {
                 globalLastDeath = model.globalLastDeath;
+                isCleared = model.cleared;
+                deathsByWorld.clear();
                 if (model.deathsByWorld != null) {
                     deathsByWorld.putAll(model.deathsByWorld);
                 }
                 if (globalLastDeath == null && !deathsByWorld.isEmpty()) {
                     globalLastDeath = deathsByWorld.values().stream()
-                            .max((a, b) -> Long.compare(a.getTimestamp(), b.getTimestamp()))
+                            .max(Comparator.comparingLong(DeathData::getTimestamp))
                             .orElse(null);
+                }
+                if (sourcePath.equals(LEGACY_CONFIG_PATH)) {
+                    saveData();
+                    LOGGER.info("[GhostCoords] Migrated legacy killinfo.json data to ghostcoords.json");
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("Ölüm bilgileri dosyadan yüklenirken hata oluştu", e);
+            LOGGER.error("[GhostCoords] Failed to load death data", e);
         }
     }
 
     private static class StorageModel {
         DeathData globalLastDeath;
         Map<String, DeathData> deathsByWorld;
+        boolean cleared;
     }
 }

@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "killinfo",
+  "id": "ghostcoords",
   "version": "${version}",
-  "name": "KillInfo",
-  "description": "Öldüğünüz yerin koordinatlarını hatırlar ve /killinfo komutu ile sadece size özel chat mesajı olarak gösterir. Singleplayer ve Multiplayer tam uyumludur.",
+  "name": "GhostCoords",
+  "description": "Client-side death coordinate tracker that privately shows your last death location in chat via /killinfo or /ghostcoords. Works in Singleplayer & Multiplayer.",
   "authors": [
     "Kazim"
   ],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/killinfo/icon.png",
+  "icon": "assets/ghostcoords/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
-      "com.killinfo.KillInfoClient"
+      "com.ghostcoords.GhostCoordsClient"
     ]
   },
   "mixins": [
     {
-      "config": "killinfo.client.mixins.json",
+      "config": "ghostcoords.client.mixins.json",
       "environment": "client"
     }
   ],

@@ -1,54 +1,61 @@
-# KillInfo - Minecraft Fabric 26.3 Modu
+# 👻 GhostCoords
 
-**KillInfo**, Minecraft 26.3 için geliştirilmiş, öldüğünüz yerin koordinatlarını otomatik olarak hafızada tutan ve `/killinfo` komutu ile **yalnızca sizin görebileceğiniz** bir chat mesajı olarak sunan istemci taraflı (client-side) bir Fabric modudur.
+**Never lose your stuff again!**  
+**GhostCoords** is a lightweight, 100% **client-side** Fabric mod for **Minecraft 26.3** that automatically remembers where you died and displays your exact death coordinates privately in chat—visible **only to you**.
 
----
-
-## 🎯 Özellikler
-
-- **Ölüm Koordinatlarını Hatırlama:** Karakteriniz öldüğünde X, Y, Z koordinatları, bulunulan boyut (Overworld, Nether, End), ölüm nedeni ve zamanı otomatik olarak kaydedilir.
-- **Gizli & Sadece Size Özel:** `/killinfo` komutu tamamen istemci tarafında (Fabric Client Command API) çalışır. Yazdığınız komut da, verilen yanıt da sunucuya veya diğer oyunculara gitmez; sadece sizin chat ekranınızda görünür.
-- **Multiplayer & Singleplayer Desteği:**
-  - Sunucuya herhangi bir mod kurulmasına gerek yoktur.
-  - Hypixel, Aternos, yerel ağ (LAN) veya herhangi bir vanilla/Paper/Fabric multiplayer sunucusunda doğrudan çalışır.
-  - Singleplayer dünyalarında da eksiksiz çalışır.
-  - Farklı dünyaların ve sunucuların ölüm koordinatlarını ayrı ayrı hatırlar.
-- **Çift Katmanlı Algılama (Fail-Safe):** Hem ölüm ekranı (`DeathScreen`), hem de sunucu savaş paketi (`ClientboundPlayerCombatKillPacket`) dinlenir. `doImmediateRespawn` açık olsa bile koordinatlar kaçırılmaz.
-- **Etkileşimli Chat Arayüzü:**
-  - Chatteki koordinat metnine veya `[Panoya Kopyala]` butonuna tıkladığınızda koordinatlar doğrudan sistem panonuza kopyalanır.
-- **Kalıcı Hafıza:** Oyunu kapatsanız veya sunucudan ayrılsanız bile koordinatlar `.minecraft/config/killinfo.json` dosyasına kaydedilir ve kaybolmaz.
+Works seamlessly in **Singleplayer** and on **any Multiplayer server** (Vanilla, Paper, Spigot, Fabric, Realms, LAN) with zero server-side installation required.
 
 ---
 
-## ⌨️ Komutlar
+## ✨ Features
 
-| Komut | Açıklama |
+- **Automatic Death Tracking:** Records your exact **X, Y, Z** coordinates, **dimension** (`Overworld`, `The Nether`, `The End`, or custom dimensions), **world/server**, **cause of death**, and **timestamp** the instant you die.
+- **100% Private & Client-Side:** Commands run strictly on your client via Fabric's Client Command API. No packets are sent to the server and no other player can see your command or death location.
+- **Works Everywhere:** Full support for Singleplayer and Multiplayer, keeping separate death records per world and per server (with a warning if a fallback coordinate comes from another world/server).
+- **Fail-Safe Detection + Vanilla Recovery:** Listens to both the death screen (`DeathScreen`) and combat kill packets (`ClientboundPlayerCombatKillPacket`), so even servers with `doImmediateRespawn` enabled are covered. Also recovers vanilla Minecraft's client-side `lastDeathLocation` (Recovery Compass data) if available.
+- **Interactive Chat Buttons:**
+  - Click coordinates or **`[Copy to Clipboard]`** to copy `X Y Z` directly to your clipboard.
+  - Click **`[Teleport /tp]`** to pre-fill a cross-dimensional `/execute in <dimension> run tp @s X Y Z` command in your chat box.
+- **Persistent Storage:** Saved atomically to `.minecraft/config/ghostcoords.json` so your coordinates survive restarts and disconnects.
+- **Localized:** Full built-in support for **English (`en_us`)** and **Turkish (`tr_tr`)** matching your Minecraft language setting.
+
+---
+
+## ⌨️ Commands
+
+All commands are **client-side only** and completely invisible to other players:
+
+| Command | Description |
 |---|---|
-| `/killinfo` | Son öldüğünüz yerin koordinatlarını, boyutunu ve zamanını chate yazdırır (yalnızca siz görürsünüz). |
-| `/killinfo copy` | Son ölüm koordinatlarını doğrudan işletim sistemi panonuza kopyalar. |
-| `/killinfo clear` | Kaydedilen ölüm koordinatlarını sıfırlar / temizler. |
-| `/killinfo help` | Mod yardım menüsünü görüntüler. |
+| `/ghostcoords` *(or `/killinfo`)* | Privately displays your last death location, dimension, cause, and interactive buttons. |
+| `/ghostcoords copy` | Copies your last death coordinates (`X Y Z`) directly to your clipboard. |
+| `/ghostcoords clear` | Clears your saved death locations. |
+| `/ghostcoords help` | Shows the command help menu. |
+
+**Aliases:** `/killinfo`, `/deathcoords`, `/deathinfo`, `/lastdeath` (all support `copy`, `clear`, and `help`).
 
 ---
 
-## 📥 Kurulum
+## 📥 Installation
 
-1. **Gereksinimler:**
-   - Minecraft Java Edition **26.3**
-   - **Fabric Loader** (0.19.5 veya üstü)
-   - **Fabric API** (Minecraft 26.3 uyumlu sürüm)
-2. Hazır derlenmiş `killinfo-1.0.0.jar` dosyasını (projenin `build/libs/` klasöründe yer alır) `.minecraft/mods` klasörünüze kopyalayın.
-3. Minecraft'ı Fabric profili ile başlatın!
+1. Install **Minecraft 26.3** with **Fabric Loader (`>=0.19.5`)** and **Fabric API (`26.3`)**.
+2. Drop `ghostcoords-1.0.0+26.3.jar` into your `.minecraft/mods` folder.
+3. Launch the game and play!
 
 ---
 
-## 🛠️ Projeyi Kaynak Koddan Derleme
+## 🛠️ Building from Source
 
-Modu kendiniz derlemek isterseniz:
+Requires **Java 25**.
 
 ```bash
-# Proje dizininde:
 ./gradlew build
 ```
 
-Derlenen mod dosyası `build/libs/killinfo-1.0.0.jar` konumunda oluşacaktır.
+The compiled mod jar will be generated in `build/libs/ghostcoords-1.0.0+26.3.jar`.
+
+---
+
+## 📄 License
+
+Licensed under the [MIT License](LICENSE).

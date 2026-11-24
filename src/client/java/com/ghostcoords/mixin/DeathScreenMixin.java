@@ -1,6 +1,6 @@
-package com.killinfo.mixin;
+package com.ghostcoords.mixin;
 
-import com.killinfo.data.DeathTracker;
+import com.ghostcoords.data.DeathTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.player.LocalPlayer;
