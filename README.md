@@ -17,7 +17,7 @@ Works seamlessly in **Singleplayer** and on **any Multiplayer server** (Vanilla,
   - Click coordinates or **`[Copy to Clipboard]`** to copy `X Y Z` directly to your clipboard.
   - Click **`[Teleport /tp]`** to pre-fill a cross-dimensional `/execute in <dimension> run tp @s X Y Z` command in your chat box.
 - **Persistent Storage:** Saved atomically to `.minecraft/config/ghostcoords.json` so your coordinates survive restarts and disconnects.
-- **Localized:** Full built-in support for **English (`en_us`)** and **Turkish (`tr_tr`)** matching your Minecraft language setting.
+- **Clean Localization:** Uses Minecraft's standard `en_us.json` language system so resource packs and translations can easily extend it.
 
 ---
 
